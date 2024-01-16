@@ -13,7 +13,11 @@ import * as hears from "@app/functions/hears";
 (async () => {
 	await command.quit();
 	await command.start();
-	await command.sendPhoto();
+	await command.submitWallet();
+	await command.placeBet();
+	await command.coinActions();
+	await command.analyse();
+	await command.getBet();
 	await hears.text();
 	await command.launch();
 })();
