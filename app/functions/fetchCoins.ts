@@ -2,7 +2,7 @@ import { Context } from "telegraf";
 import { CoinDataType } from "./commands";
 import axios from "axios";
 
-const fetchData = async (network: string, bet: "bet" | null) => {
+const fetchData = async (network: string, bet: "bet" | null): Promise<{ data: CoinDataType[] }> => {
 	const url = `https://multichain-api.birdeye.so/${network}/trending/token?u=da39a3ee5e6b4b0d3255bfef95601890afd80709`;
 
 	const headers = new Headers({
@@ -28,12 +28,12 @@ const fetchData = async (network: string, bet: "bet" | null) => {
 
 		return result as { data: CoinDataType[] };
 	} catch (error) {
-		console.error("Error:", error);
+		// console.error("Error:", error);
 		throw error; // Rethrow the error for the caller to handle
 	}
 };
 
-const formatCoinsMessage = (result: any, bet: "bet" | null): string => {
+const formatCoinsMessage = (result: { data: CoinDataType[] }, bet: "bet" | null): string => {
 	const coinsMessage: string[] = [];
 	const filteredCoinsRange = bet ? [2, 3, 4, 5, 6] : Array.from({ length: result.data.length }, (_, i) => i);
 
@@ -72,11 +72,11 @@ const fetchCoin = async (address: string) => {
 			TE: "trailers",
 		},
 	});
-	//console.log(response.data.data.price);
+	// console.log(response.data.data.price);
 	return response.data.data;
 };
 
-const sendAllChainData = async (ctx: Context) => {
+const sendAllChainData = async (ctx: Context): Promise<void> => {
 	const ethdata = await fetchData("solana", null);
 	ctx.reply(formatCoinsMessage(ethdata, null));
 

@@ -100,7 +100,7 @@ async function sendHourlyMessage() {
 }
 
 // setInterval(sendHourlyMessage, 3000);
-//setInterval(() => console.log("hi"), 3000);
+// setInterval(() => console.log("hi"), 3000);
 
 const isValidWallet = (address: string): boolean => {
 	// ctx.reply;
@@ -124,7 +124,7 @@ const checkGroup: MiddlewareFn<Context> = (ctx, next) => {
 		next();
 	}
 };
-//"/submitWallet":  'Send a DM with the command "/submitwallet -your wallet address-" to submit your wallet',
+// "/submitWallet":  'Send a DM with the command "/submitwallet -your wallet address-" to submit your wallet',
 
 const commands = {
 	"/start": "Use this command to register and get started",
@@ -152,7 +152,7 @@ const coinActions = () => {
 	 "/submitwallet -your wallet address-" to submit your wallet`);
 	});
 	bot.command("/eth", async (ctx) => {
-		//fetchCoins("ethereum", null, ctx);
+		// fetchCoins("ethereum", null, ctx);
 
 		const data = await fetchData("ethereum", null);
 		ctx.reply(formatCoinsMessage(data, null));
@@ -334,7 +334,7 @@ const placeBet = async (): Promise<void> => {
 					);
 				}
 				const coin = ctx.match[1];
-				//ctx.reply(`You selected ${coin}`);
+				// ctx.reply(`You selected ${coin}`);
 
 				for (let index = 0; index < coinData.data.length; index++) {
 					const element = coinData.data[index];
@@ -365,7 +365,7 @@ const placeBet = async (): Promise<void> => {
 						}
 						const direction = ctx.match[1];
 
-						if (betcoin)
+						if (betcoin) {
 							betPlaced = {
 								name: betcoin.tokenData.name,
 								betId: uuidv4(),
@@ -378,7 +378,10 @@ const placeBet = async (): Promise<void> => {
 								direction: direction.toLowerCase(),
 								betVerdict: "unresolved",
 							};
-						if (betPlaced) databases.saveBet(bettor.id, betPlaced);
+						}
+						if (betPlaced) {
+							databases.saveBet(bettor.id, betPlaced);
+						}
 
 						currentState = States.BET_PLACED;
 						ctx.reply(
@@ -390,7 +393,7 @@ const placeBet = async (): Promise<void> => {
 						if (betPlaced) {
 							const dataAfterbet = await fetchCoin(betPlaced.token);
 
-							//return;
+							// return;
 							if (dataAfterbet.price > betPlaced.priceAtStartOfBet && betPlaced.direction === "down") {
 								databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "won");
 								return ctx.reply(
@@ -421,7 +424,7 @@ const placeBet = async (): Promise<void> => {
 								);
 							}
 
-							//adress issue of multiplebetid
+							// adress issue of multiplebetid
 
 							databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "lost");
 							return ctx.reply(
@@ -437,7 +440,7 @@ const placeBet = async (): Promise<void> => {
 
 		// }
 
-		//lineeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+		// lineeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 
 		// Set up the inline keyboard with dynamic buttons
 
@@ -546,7 +549,9 @@ const placeBet = async (): Promise<void> => {
 const getBet = () => {
 	bot.command("/mybets", (ctx) => {
 		const bets = databases.getBetsFromDb(ctx.from.id);
-		if (bets.length === 0) return ctx.reply("You have no bets yet use /placebet to place a bet");
+		if (bets.length === 0) {
+			return ctx.reply("You have no bets yet use /placebet to place a bet");
+		}
 
 		for (let index = 0; index < bets.length; index++) {
 			const element = bets[index];
@@ -561,7 +566,9 @@ const getBet = () => {
 
 	bot.command("/myopenbets", (ctx) => {
 		const openBets = databases.getBetsFromDb(ctx.from.id).filter((bets) => bets.status === "open");
-		if (openBets.length === 0) return ctx.reply("You have no open bets");
+		if (openBets.length === 0) {
+			return ctx.reply("You have no open bets");
+		}
 
 		for (let index = 0; index < openBets.length; index++) {
 			const element = openBets[index];
@@ -587,7 +594,7 @@ const submitWallet = async (): Promise<void> => {
 
 		if (commandText) {
 			if (isValidWallet(commandText)) {
-				//save wallet to db
+				// save wallet to db
 				if (databases.updateWallet(ctx.from.id, commandText)) {
 					return ctx.reply("wallet submitted successfully");
 				}

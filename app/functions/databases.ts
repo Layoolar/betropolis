@@ -7,13 +7,24 @@
  * @license: MIT License
  *
  */
+
+interface HistoricalDataAndGraph {
+	priceChartBuffer: Buffer;
+	marketCapChartBuffer: Buffer;
+	priceHistoricalData: {
+		time: number;
+		price: number;
+		name: string;
+		marketCap: number;
+	}[];
+}
 import type { TelegramUserInterface } from "@app/types/databases.type";
 import configs from "@configs/config";
 import lowdb from "lowdb";
 import lowdbFileSync from "lowdb/adapters/FileSync";
 import { BetData, CoinDataType } from "./commands";
 import fetchData from "./fetchCoins";
-//onst ChartJsImage = require("chartjs-to-image");
+// onst ChartJsImage = require("chartjs-to-image");
 import ChartJsImage from "chartjs-to-image";
 
 interface MyUser extends TelegramUserInterface {
@@ -37,11 +48,20 @@ export interface CoinDataCollection {
 	topTenStatus: boolean;
 }
 
+interface leaderboardPlayer{
+
+userId:string
+wins:number
+losses:number
+
+
+}
 const databases = {
 	users: lowdb(new lowdbFileSync<{ users: MyUser[] }>(configs.databases.users)),
 	ethCoinsData: lowdb(new lowdbFileSync<{ coinsData: CoinDataCollection[] }>(configs.databases.ethCoinsData)),
 	solCoinsData: lowdb(new lowdbFileSync<{ coinsData: CoinDataCollection[] }>(configs.databases.solCoinsData)),
 	bnbCoinsData: lowdb(new lowdbFileSync<{ coinsData: CoinDataCollection[] }>(configs.databases.bnbCoinsData)),
+	leaderboard: lowdb(new lowdbFileSync<{ leaders: leaderboardPlayer[] }>(configs.databases.bnbCoinsData)),
 };
 
 databases.ethCoinsData = lowdb(new lowdbFileSync(configs.databases.ethCoinsData));
@@ -56,6 +76,9 @@ databases.bnbCoinsData.defaults({ coinsData: [] }).write();
 databases.users = lowdb(new lowdbFileSync(configs.databases.users));
 databases.users.defaults({ users: [] }).write();
 
+databases.leaderboard = lowdb(new lowdbFileSync(configs.databases.leaderboard));
+databases.leaderboard.defaults({ leaderboardPlayer: [] }).write();
+
 /**
  * writeUser()
  * =====================
@@ -68,6 +91,18 @@ databases.users.defaults({ users: [] }).write();
  * @param { TelegramUserInterface } json - telegram user object
  *
  */
+
+// const updateLeaderboard=()=>{
+
+
+
+
+
+
+// }
+// console.log(databases.users.get("users").value());
+
+
 const writeUser = async (json: MyUser): Promise<void> => {
 	const user_id = databases.users.get("users").find({ id: json.id }).value();
 
@@ -88,7 +123,9 @@ const updateWallet = (userId: number, newWallet: string): boolean => {
 	if (userInDb.value()) {
 		userInDb.assign({ walletAddress: newWallet }).write();
 		return true;
-	} else return false;
+	} else {
+		return false;
+	}
 };
 const isWalletNotNull = (userId: number): boolean => {
 	const userInDb = databases.users.get("users").find({ id: userId }).value();
@@ -101,7 +138,9 @@ const saveBet = (userId: number, betData: BetData) => {
 	if (userInDb.value()) {
 		userInDb.assign({ bets: [...userInDb.value().bets, betData] }).write();
 		return true;
-	} else return false;
+	} else {
+		return false;
+	}
 };
 
 const updateBetStatus = (userId: number, betData: BetData, price: number, verdict: string) => {
@@ -150,7 +189,7 @@ const updateCoinData = (incomingCoinData: CoinDataCollection, db: string) => {
 		const existingCoinIndex = databases[db].get("coinsData").findIndex({ id: coinId }).value();
 
 		if (existingCoinIndex !== -1) {
-			//@ts-ignore
+			// @ts-ignore
 			const existingCoin = { ...databases[db].get("coinsData").find({ id: coinId }).value() };
 
 			// Push the incoming coindata to the existing coindata array
@@ -161,7 +200,7 @@ const updateCoinData = (incomingCoinData: CoinDataCollection, db: string) => {
 			// @ts-ignore
 			databases[db].get("coinsData").find({ id: coinId }).assign(existingCoin).write();
 
-			//console.log(`CoinData with ID ${coinId} updated successfully.`);
+			// console.log(`CoinData with ID ${coinId} updated successfully.`);
 		} else {
 			// If the coinData doesn't exist, add a new entry
 			addCoinData(incomingCoinData, db);
@@ -234,7 +273,7 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 	const tokens: { data: CoinDataType[] } = await fetchData(chain, null);
 	let db: string;
 
-	let priceHistoricalData: { time: number; price: number; name: string; marketCap: number }[] = [];
+	const priceHistoricalData: { time: number; price: number; name: string; marketCap: number }[] = [];
 	// console.log(tokens);
 	const token = tokens.data.filter((item) => item.tokenData.name === tokenName);
 
@@ -249,14 +288,14 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 		return null;
 	}
 
-	//@ts-ignore
+	// @ts-ignore
 	const historical = databases[db].get("coinsData").find({ id: token[0].token });
 
 	if (historical.value() === undefined) {
 		return null;
 	}
-	//console.log(historical.value());
-	//const userInDb = databases.users.get("users").find({ id: userId });
+	// console.log(historical.value());
+	// const userInDb = databases.users.get("users").find({ id: userId });
 
 	for (let index = 0; index < historical.value().coindata.length; index++) {
 		const element = historical.value().coindata[index];
@@ -269,7 +308,7 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 	}
 
 	const { priceArray, marketCapArray } = extractTimeAndPrice(priceHistoricalData);
-	console.log(priceArray);
+
 	const myPriceChart = new ChartJsImage();
 	myPriceChart.setConfig({
 		type: "line",
@@ -286,14 +325,14 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 			datasets: [{ label: "Market cap", data: marketCapArray.slice(-6) }],
 		},
 	});
-	//console.log(myChart.getUrl());
+	// console.log(myChart.getUrl());
 
 	const buf = await myPriceChart.toBinary();
 	const capBuf = await myMcapChart.toBinary();
 	return { priceChartBuffer: buf, marketCapChartBuffer: capBuf, priceHistoricalData: priceHistoricalData };
 };
 
-const openaiApiKey = "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";
+// const openaiApiKey = "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";
 
 // fetch("https://api.openai.com/v1/chat/completions", {
 // 	method: "POST",
