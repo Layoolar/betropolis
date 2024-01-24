@@ -15,6 +15,7 @@ import config from "@configs/config";
 import { launchPolling, launchWebhook } from "./launcher";
 import fetchData, { fetchCoin, formatCoinsMessage, sendAllChainData } from "./fetchCoins";
 import { v4 as uuidv4 } from "uuid";
+import { queryAi } from "./queryApi";
 
 export interface CoinDataType {
 	token: string;
@@ -64,6 +65,16 @@ export type BetData = {
 // };
 
 let chatId: number;
+const aiPromptText = `\{trade: trades,\${address of token to buy},\${value of the token to buy}
+							 enquiries:enquiries,\${chain},\${contract address} 
+							 others: null } 
+							 I just created a key value pair above. 
+						Read the data after the object and reply with strictly that format the intention of the
+						message. If the intention is to buy a token, reply with \"trades, the toke address the user wants
+						to buy, how much he wants to buy\". Just like the object above, reply exactly in that format. 
+						I've provided a key value pair object above. Once you notice the intetion matches, 
+						reply in the format of the value while substituting the appropriate values in. 
+					Remember, only in that format dont add a space after the comma. So, here's the content you are analysing below: `;
 
 const buttons = Markup.inlineKeyboard([
 	// [Markup.button.callback("Today's posts", "todays_post"), Markup.button.callback("My points", "points")],
@@ -145,6 +156,67 @@ bot.help((ctx) => {
 
 	ctx.reply(`Here are some available commands:\n\n${commandsList}`);
 });
+
+const prompt = () => {
+	bot.command("/prompt", async (ctx) => {
+		const commandArgs = ctx.message.text.split(" ").slice(1);
+
+		const prompt = commandArgs.join(" ");
+		const response = await queryAi(aiPromptText + prompt);
+
+		if (response.toLowerCase() === "null") return ctx.reply("Please clarify your request or enquiry");
+		console.log(response);
+		const responseArray = response.split(",");
+		//first item is type of request
+		console.log(responseArray[0]);
+		if (responseArray[0].toLowerCase() === "enquiries") {
+			console;
+			const coinData = await fetchCoin(responseArray[2], responseArray[1]);
+			const coinDataJson = JSON.stringify(coinData);
+			console.log(coinData);
+
+			const summary = await queryAi(
+				`Summarize the data contained in this ${coinDataJson} make it conversational 
+				using the name address price liquidity marketcap, do not add anything in the text referring
+				 to the json object or the data provided just make it seem normal.`,
+			);
+			console.log(summary);
+			ctx.reply(summary);
+		} else if (responseArray[0].toLowerCase() === "trades") {
+			const States = {
+				START_TRADING: "start_trading",
+				CONFIRM_COIN: "confirm_coin",
+			};
+			let state = States.START_TRADING;
+
+			const worth = responseArray[2];
+			const contractAddress = responseArray[1];
+
+			const coin = await fetchCoin(responseArray[1], "ethereum");
+
+			const actions = ["Confirm", "Cancel"];
+
+			const buttons = actions.map((action: string) => [Markup.button.callback(`${action}`, `action_${action}`)]);
+			const keyboard = Markup.inlineKeyboard(buttons);
+
+			state = States.CONFIRM_COIN;
+			ctx.reply(`Are you sure you want to trade \$${worth} worth of ${contractAddress} (${coin.name})`, keyboard);
+
+			bot.action(/action_(.+)/, async (ctx) => {
+				const action = ctx.match[1];
+				if (state !== States.CONFIRM_COIN) {
+					return ctx.reply("You have selected your option, use the prompt to start another trade");
+				}
+				state = States.START_TRADING;
+				if (action.toLowerCase() === "confirm") {
+					console.log(action);
+				} else {
+					return ctx.reply("Trade has been cancelled");
+				}
+			});
+		}
+	});
+};
 
 const coinActions = () => {
 	bot.command("/wallet", (ctx) => {
@@ -306,16 +378,20 @@ const placeBet = async (): Promise<void> => {
 		const buttons = chains.map((chain) => [Markup.button.callback(`${chain}`, `chain_${chain}`)]);
 		const keyboard = Markup.inlineKeyboard(buttons);
 		let currentState = States.CHOOSE_CHAIN;
-		ctx.reply("Choose a chain to bet on", keyboard);
+		await ctx.reply("Choose a chain to bet on", keyboard);
 
-		bot.command("/cancelbet", (ctx) => {
+		const cancelButton = [Markup.button.callback("Cancel", "cancelbet")];
+
+		ctx.reply("Use the button below to cancel the bet process", Markup.inlineKeyboard(cancelButton));
+
+		bot.action("cancelbet", (ctx) => {
 			currentState = States.CHOOSE_CHAIN;
 			return ctx.reply("Bet Process has been cancelled. use /placebet to restart");
 		});
 		bot.action(/chain_(.+)/, async (ctx) => {
 			if (currentState !== States.CHOOSE_CHAIN) {
 				return ctx.reply(
-					"Invalid action at this point. If you want to go back use /cancelbet to cancel current bet process and restart",
+					"Invalid action at this point. If you want to go back use the cancel bet button to cancel current bet process and restart",
 				);
 			}
 			const chain = ctx.match[1];
@@ -325,12 +401,13 @@ const placeBet = async (): Promise<void> => {
 			const buttons = coins.map((coin: any) => [Markup.button.callback(`${coin}`, `coin_${coin}`)]);
 			const keyboard = Markup.inlineKeyboard(buttons);
 			currentState = States.CHOOSE_COIN;
-			ctx.reply(`These are the coins available to bet on the ${chain} chain`, keyboard);
+			await ctx.reply(`These are the coins available to bet on the ${chain} chain`, keyboard);
+			ctx.reply("Use the button below to cancel the bet process", Markup.inlineKeyboard(cancelButton));
 
-			bot.action(/coin_(.+)/, (ctx) => {
+			bot.action(/coin_(.+)/, async (ctx) => {
 				if (currentState !== States.CHOOSE_COIN) {
 					return ctx.reply(
-						"Invalid action at this point. If you want to go back use /cancelbet to cancel current bet process and restart",
+						"Invalid action at this point. If you want to go back use the cancel bet button to cancel current bet process and restart",
 					);
 				}
 				const coin = ctx.match[1];
@@ -355,12 +432,13 @@ const placeBet = async (): Promise<void> => {
 					const keyboard = Markup.inlineKeyboard(buttons);
 
 					currentState = States.CHOOSE_DIRECTION;
-					ctx.reply("Choose a direction", keyboard);
+					await ctx.reply("Choose a direction", keyboard);
+					ctx.reply("Use the button below to cancel the bet process", Markup.inlineKeyboard(cancelButton));
 
 					bot.action(/direction_(.+)/, async (ctx) => {
 						if (currentState !== States.CHOOSE_DIRECTION) {
 							return ctx.reply(
-								"Invalid action at this point. If you want to go back use /cancelbet to cancel current bet process and restart",
+								"Invalid action at this point. If you want to go back use the cancel bet button to cancel current bet process and restart",
 							);
 						}
 						const direction = ctx.match[1];
@@ -384,26 +462,30 @@ const placeBet = async (): Promise<void> => {
 						}
 
 						currentState = States.BET_PLACED;
-						ctx.reply(
+						await ctx.reply(
 							`you have placed a bet on ${betPlaced?.name} and the direction is ${betPlaced?.direction}`,
 						);
 
 						// 	//await delay(1800000);
 
 						if (betPlaced) {
-							const dataAfterbet = await fetchCoin(betPlaced.token);
+							const dataAfterbet = await fetchCoin(betPlaced.token, betPlaced.network);
 
 							// return;
-							if (dataAfterbet.price > betPlaced.priceAtStartOfBet && betPlaced.direction === "down") {
+							if (dataAfterbet.price < betPlaced.priceAtStartOfBet && betPlaced.direction === "down") {
+								//console.log(betPlaced.direction);
 								databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "won");
+								databases.updateLeaderboard();
 								return ctx.reply(
 									`${bettor.first_name || bettor.username} your bet on ${betPlaced.name} was won `,
 								);
 							} else if (
-								dataAfterbet.price < betPlaced.priceAtStartOfBet &&
+								dataAfterbet.price > betPlaced.priceAtStartOfBet &&
 								betPlaced.direction === "up"
 							) {
+								//console.log(betPlaced.direction);
 								databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "won");
+								databases.updateLeaderboard();
 								return ctx.reply(
 									`${bettor.first_name || bettor.username} your bet on ${betPlaced.name} was won `,
 								);
@@ -411,25 +493,19 @@ const placeBet = async (): Promise<void> => {
 								dataAfterbet.price === betPlaced.priceAtStartOfBet &&
 								betPlaced.direction == "same"
 							) {
+								databases.updateLeaderboard();
+								//console.log(betPlaced.direction);
 								databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "won");
 								return ctx.reply(
 									`${bettor.username || bettor.first_name} your bet on ${betPlaced.name} was won `,
 								);
-							}
-
-							if (betPlaced.direction === "down") {
-								databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "won");
+							} else {
+								databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "lost");
+								databases.updateLeaderboard();
 								return ctx.reply(
-									`${bettor.username || bettor.first_name} your bet on ${betPlaced.name} was won `,
+									`${bettor.username || bettor.first_name} your bet on ${betPlaced.name} was lost `,
 								);
 							}
-
-							// adress issue of multiplebetid
-
-							databases.updateBetStatus(bettor.id, betPlaced, dataAfterbet.price, "lost");
-							return ctx.reply(
-								`${bettor.username || bettor.first_name} your bet on ${betPlaced.name} was lost `,
-							);
 						}
 					});
 				}
@@ -577,12 +653,12 @@ const getBet = () => {
 	});
 };
 
-const analyse = () => {
-	bot.command("analyze", async (ctx) => {
-		const inputArray = ctx.message.text.split(" ");
-		const coinRequested = inputArray.slice(1).join(" ");
-	});
-};
+// const analyse = () => {
+// 	bot.command("analyze", async (ctx) => {
+// 		const inputArray = ctx.message.text.split(" ");
+// 		const coinRequested = inputArray.slice(1).join(" ");
+// 	});
+// };
 
 const submitWallet = async (): Promise<void> => {
 	bot.command("submitwallet", checkGroup, async (ctx) => {
@@ -607,6 +683,15 @@ const submitWallet = async (): Promise<void> => {
 	});
 };
 
+const leaderBoard = async (): Promise<void> => {
+	bot.command("leaderboard", (ctx) => {
+		console.log("hi");
+		const leaderboard = databases.getLeaderboard();
+
+		return ctx.reply(`These are the Players on the leader board\n\n ${leaderboard.join("\n")}`);
+	});
+};
+
 /**
  * Run bot
  * =====================
@@ -622,5 +707,5 @@ const launch = async (): Promise<void> => {
 	}
 };
 
-export { launch, quit, start, submitWallet, placeBet, coinActions, analyse, getBet };
+export { launch, quit, start, submitWallet, placeBet, coinActions, getBet, leaderBoard, prompt };
 export default launch;

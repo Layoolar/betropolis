@@ -15,10 +15,9 @@ import bot from "@app/functions/telegraf";
  * Listen any text user write
  *
  */
+
 const text = async (): Promise<void> => {
-	bot.on("text", (ctx) => {
-		ctx.telegram.sendMessage(ctx.message.chat.id, `Your text --> ${ctx.update.message.text}`);
-	});
+	bot.on("text", async (ctx): Promise<void> => {});
 };
 
 export { text };

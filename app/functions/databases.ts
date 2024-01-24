@@ -48,13 +48,11 @@ export interface CoinDataCollection {
 	topTenStatus: boolean;
 }
 
-interface leaderboardPlayer{
-
-userId:string
-wins:number
-losses:number
-
-
+interface leaderboardPlayer {
+	id: number;
+	username: string | undefined;
+	wins: number;
+	losses: number;
 }
 const databases = {
 	users: lowdb(new lowdbFileSync<{ users: MyUser[] }>(configs.databases.users)),
@@ -77,7 +75,7 @@ databases.users = lowdb(new lowdbFileSync(configs.databases.users));
 databases.users.defaults({ users: [] }).write();
 
 databases.leaderboard = lowdb(new lowdbFileSync(configs.databases.leaderboard));
-databases.leaderboard.defaults({ leaderboardPlayer: [] }).write();
+databases.leaderboard.defaults({ leaders: [] }).write();
 
 /**
  * writeUser()
@@ -92,16 +90,67 @@ databases.leaderboard.defaults({ leaderboardPlayer: [] }).write();
  *
  */
 
-// const updateLeaderboard=()=>{
+const updateLeaderboard = () => {
+	//getallusers
+	const users = databases.users.get("users").value();
+	//console.log(databases.users.get("users").value());
+
+	const leaderboardUsers = users.filter((user) => user.bets.length >= 5);
+
+	//	console.log(leaderboardUsers);
+	leaderboardUsers.forEach((user) => {
+		const leader = databases.leaderboard.get("leaders").find({ id: user.id }).value();
+
+		let wins = 0;
+		let losses = 0;
+
+		user.bets.forEach((bet) => {
+			if (bet.betVerdict === "won") {
+				wins++;
+			} else {
+				losses++;
+			}
+		});
+
+		if (leader) {
+			//updating user in leaderboard if they exist
+			databases.leaderboard
+				.get("leaders")
+				.find({ id: user.id })
+				.assign({ id: user.id, losses: losses, wins: wins, username: user.username || user.first_name })
+				.write();
+		} else {
+			databases.leaderboard
+				.get("leaders")
+				.push({ id: user.id, losses: losses, wins: wins, username: user.username || user.first_name })
+				.write();
+		}
+	});
+};
+//console.log(databases.users.get("users").value());
+
+const getLeaderboard = (): string[] => {
+
+	const players = databases.leaderboard.get("leaders").value();
+ players.sort((a, b) => b.wins - a.wins);
+ const leaderboard:string[]=[]
+
+ // Select the top 10 players
+ const top10Players = players.slice(0, 10);
 
 
+ top10Players.forEach(element => {
 
+	
+ });
 
-
-
-// }
-// console.log(databases.users.get("users").value());
-
+ for (let index = 0; index < top10Players.length; index++) {
+	const element = top10Players[index];
+	leaderboard.push(`${index + 1}. ${element.username}   ${element.wins} wins `);
+ }
+		
+ return leaderboard;
+};
 
 const writeUser = async (json: MyUser): Promise<void> => {
 	const user_id = databases.users.get("users").find({ id: json.id }).value();
@@ -144,7 +193,7 @@ const saveBet = (userId: number, betData: BetData) => {
 };
 
 const updateBetStatus = (userId: number, betData: BetData, price: number, verdict: string) => {
-	console.log("updating");
+	//console.log("updating");
 	const userInDb = databases.users.get("users").find({ id: userId });
 	const existingBets = userInDb.value().bets;
 
@@ -332,35 +381,8 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 	return { priceChartBuffer: buf, marketCapChartBuffer: capBuf, priceHistoricalData: priceHistoricalData };
 };
 
-// const openaiApiKey = "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";
+//this should be hidden
 
-// fetch("https://api.openai.com/v1/chat/completions", {
-// 	method: "POST",
-// 	headers: {
-// 		"Content-Type": "application/json",
-// 		Authorization: `Bearer ${openaiApiKey}`,
-// 	},
-// 	body: JSON.stringify({
-// 		model: "gpt-3.5-turbo",
-// 		messages: [
-// 			{
-// 				role: "user",
-// 				content: ` if i give you data can you analyse the data and mention if there is a common market trend that can give informartion in buy or sell. this is an array of price
-// 					[
-//   0,
-//   0.14991464554707615,
-//   0.14991464554707615,
-//   0.14991464554707615,
-//   0.14991464554707615
-// ]in the last 30 mins `,
-// 			},
-// 		],
-// 		temperature: 0.7,
-// 	}),
-// })
-// 	.then((response) => response.json())
-// 	.then((data) => console.log(data.choices[0].message))
-// 	.catch((error) => console.error("Error:", error));
 
 // analyse the data and mention if there is a common market trend that can give informartion in buy or sell.
 
@@ -374,5 +396,7 @@ export {
 	updateBetStatus,
 	getHistoricalDataAndGraph,
 	getBetsFromDb,
+	getLeaderboard,
+	updateLeaderboard,
 };
 export default databases;

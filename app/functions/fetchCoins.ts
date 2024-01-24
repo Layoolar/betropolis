@@ -49,31 +49,37 @@ const formatCoinsMessage = (result: { data: CoinDataType[] }, bet: "bet" | null)
 	)}`;
 };
 
-const fetchCoin = async (address: string) => {
-	const response = await axios.get("https://multichain-api.birdeye.so/ethereum/overview/token", {
-		params: {
-			address: address,
-		},
-		headers: {
-			"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/111.0",
-			Accept: "application/json, text/plain, /",
-			"Accept-Language": "en-US,en;q=0.5",
-			"Accept-Encoding": "gzip, deflate, br",
-			"agent-id": "f28a43fd-ca0e-4dad-a4ea-b28f8f3805b5",
-			"cf-be":
-				"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDI5ODk5MTgsImV4cCI6MTcwMjk5MDIxOH0.jowdRorsn5TuuYt0B_SwG36jwlmzKLtsJnav5MZ-iAY",
-			Origin: "https://birdeye.so",
-			Connection: "keep-alive",
-			Referer: "https://birdeye.so/",
-			"Sec-Fetch-Dest": "empty",
-			"Sec-Fetch-Mode": "cors",
-			"Sec-Fetch-Site": "same-site",
-			"If-None-Match": 'W/"22c8-TcNjeQoXG+lDekngUVup8/479dc"',
-			TE: "trailers",
-		},
-	});
-	// console.log(response.data.data.price);
-	return response.data.data;
+//fetchCoin("0x38e382F74dfb84608F3C1F10187f6bEf5951DE93", "ethereum");
+const fetchCoin = async (address: string, network: string) => {
+	try {
+		const response = await axios.get(`https://multichain-api.birdeye.so/${network}/overview/token`, {
+			params: {
+				address: address,
+			},
+			headers: {
+				"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/111.0",
+				Accept: "application/json, text/plain, /",
+				"Accept-Language": "en-US,en;q=0.5",
+				"Accept-Encoding": "gzip, deflate, br",
+				"agent-id": "f28a43fd-ca0e-4dad-a4ea-b28f8f3805b5",
+				"cf-be":
+					"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MDI5ODk5MTgsImV4cCI6MTcwMjk5MDIxOH0.jowdRorsn5TuuYt0B_SwG36jwlmzKLtsJnav5MZ-iAY",
+				Origin: "https://birdeye.so",
+				Connection: "keep-alive",
+				Referer: "https://birdeye.so/",
+				"Sec-Fetch-Dest": "empty",
+				"Sec-Fetch-Mode": "cors",
+				"Sec-Fetch-Site": "same-site",
+				"If-None-Match": 'W/"22c8-TcNjeQoXG+lDekngUVup8/479dc"',
+				TE: "trailers",
+			},
+		});
+
+		return response.data.data;
+	} catch (error) {
+		console.log("Error fetching coin:", error);
+		return null;
+	}
 };
 
 const sendAllChainData = async (ctx: Context): Promise<void> => {
