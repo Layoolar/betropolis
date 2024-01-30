@@ -17,6 +17,10 @@ import fetchData, { fetchCoin, formatCoinsMessage, sendAllChainData } from "./fe
 import { v4 as uuidv4 } from "uuid";
 import { queryAi } from "./queryApi";
 
+
+// interface coins extends CoinDataType{
+
+// }
 export interface CoinDataType {
 	token: string;
 	rank: number;
@@ -209,6 +213,9 @@ const prompt = () => {
 				}
 				state = States.START_TRADING;
 				if (action.toLowerCase() === "confirm") {
+
+
+					
 					console.log(action);
 				} else {
 					return ctx.reply("Trade has been cancelled");
