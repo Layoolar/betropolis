@@ -17,7 +17,6 @@ import fetchData, { fetchCoin, formatCoinsMessage, sendAllChainData } from "./fe
 import { v4 as uuidv4 } from "uuid";
 import { queryAi } from "./queryApi";
 
-
 // interface coins extends CoinDataType{
 
 // }
@@ -68,6 +67,24 @@ export type BetData = {
 // 	symbol: string;
 // };
 
+const promptText = `
+I just created a key-value pair object:
+
+\`\`\`javascript
+{
+  trade: [trades, \${address of token to buy}, \${value of the token to buy}],
+  enquiries: [enquiries, \${chain}, \${contract address}],
+  others: null
+}
+\`\`\`
+Read the data after the object and reply strictly in the following format based on the intention of the message:
+
+If the intention is to buy a token, reply with "trades, [the token address the user wants to buy], [how much he wants to buy]".
+Remember, reply exactly in that format, substituting the appropriate values. Do not add a space after the comma.
+
+Now analyze the content below and reply accordingly:
+`;
+
 let chatId: number;
 const aiPromptText = `\{trade: trades,\${address of token to buy},\${value of the token to buy}
 							 enquiries:enquiries,\${chain},\${contract address} 
@@ -79,6 +96,16 @@ const aiPromptText = `\{trade: trades,\${address of token to buy},\${value of th
 						I've provided a key value pair object above. Once you notice the intetion matches, 
 						reply in the format of the value while substituting the appropriate values in. 
 					Remember, only in that format dont add a space after the comma. So, here's the content you are analysing below: `;
+
+const analysisPrompt = `Below are the values of a token prices in the Las 30 minutes... Identify market trends or indicators and use that data to predict maybe the token will go up or down...
+
+
+You must choose out of up or down and give reason
+
+ this is the data const dataObject = {
+  price: [73.48, 28.59, 11.71, 95.41, 42.57],
+  time: [0, 5, 10, 15, 20, 25],
+};`;
 
 const buttons = Markup.inlineKeyboard([
 	// [Markup.button.callback("Today's posts", "todays_post"), Markup.button.callback("My points", "points")],
@@ -213,9 +240,6 @@ const prompt = () => {
 				}
 				state = States.START_TRADING;
 				if (action.toLowerCase() === "confirm") {
-
-
-					
 					console.log(action);
 				} else {
 					return ctx.reply("Trade has been cancelled");
@@ -259,33 +283,49 @@ const coinActions = () => {
 		sendAllChainData(ctx);
 	});
 
+	// const commandArgs = ctx.message.text.split(" ").slice(1, 3);
+
+	// const coinSymbol = commandArgs[0];
+	// const chain = commandArgs[1];
 	bot.command("/analysis", async (ctx) => {
-		// const commandArgs = ctx.message.text.split(" ").slice(1, 3);
+		// const States = {
+		// 	CHOOSE_CHAIN: "choose_chain",
+		// 	CHOOSE_COIN: "choose_coin",
+		// };
 
-		// const coinSymbol = commandArgs[0];
-		// const chain = commandArgs[1];
-
+		// let state=States.CHOOSE_CHAIN
 		const chains = ["Ethereum", "Solana", "Bnb"];
+
+		const cancelButton = [Markup.button.callback(`Cancel`, `cancel`)];
 		const buttons = chains.map((chain) => [Markup.button.callback(`${chain}`, `chain_${chain}`)]);
 		const keyboard = Markup.inlineKeyboard(buttons);
 		ctx.reply("Choose a chain", keyboard);
+		//	ctx.reply("Press this button to cancel", Markup.inlineKeyboard(cancelButton));
 
 		bot.action(/chain_(.+)/, async (ctx) => {
+			// if(state!=States.CHOOSE_CHAIN){
+
+			// 	ctx.reply("You have selected a chain please cancel/complete the current process")
+			// }
 			const chain = ctx.match[1];
 
 			const coinData = await fetchData(chain.toLowerCase(), null);
 			const coins = coinData.data.map((coin: any) => `${coin.tokenData.name}`);
 			const buttons = coins.map((coin: any) => [Markup.button.callback(`${coin}`, `coin_${coin}`)]);
 			const keyboard = Markup.inlineKeyboard(buttons);
-			ctx.reply(`These are the coins available for charting on the ${chain} chain`, keyboard);
+			ctx.reply(`These are the coins available for analysis on the ${chain} chain`, keyboard);
+			//ctx.reply("Press this button to cancel", Markup.inlineKeyboard(cancelButton));
 			bot.action(/coin_(.+)/, async (ctx) => {
 				const coin = ctx.match[1];
 				const response = await databases.getHistoricalDataAndGraph(coin, chain.toLowerCase());
 
 				if (response?.priceChartBuffer && response.priceHistoricalData && response.marketCapChartBuffer) {
+					ctx.reply(`These are the charts for the price and market cap of ${response.priceHistoricalData[0].name} in the last 30 minutes or lesser based on how
+ long it has spent in the top 10, the data points are in 5 minute intervals`);
+
 					ctx.replyWithPhoto(
 						{ source: response.priceChartBuffer },
-						{ caption: `This is the price chart data for ${response.priceHistoricalData[0].name}` },
+						{ caption: `This is the price chart of ${response.priceHistoricalData[0].name}` },
 					);
 
 					ctx.replyWithPhoto(
@@ -297,22 +337,19 @@ const coinActions = () => {
 				}
 			});
 		});
-
-		// const response = await databases.getHistoricalDataAndGraph(coinSymbol, chain);
-
-		// if (response?.chartBuffer && response.priceHistoricalData) {
-		// 	ctx.replyWithPhoto(
-		// 		{ source: response.chartBuffer },
-		// 		{ caption: `This is the chart data for ${response.priceHistoricalData[0].name} (${coinSymbol}) ` },
-		// 	);
-		// } else {
-		// 	ctx.reply("The token requested is not valid, check trending tokens and try again");
-		// }
 	});
-	// bot.command("/getallbetcoins", async (ctx) => {
-	// 	sendAllChainData(ctx, "bet");
-	// });
 };
+
+// const response = await databases.getHistoricalDataAndGraph(coinSymbol, chain);
+
+// if (response?.chartBuffer && response.priceHistoricalData) {
+// 	ctx.replyWithPhoto(
+// 		{ source: response.chartBuffer },
+// 		{ caption: `This is the chart data for ${response.priceHistoricalData[0].name} (${coinSymbol}) ` },
+// 	);
+// } else {
+// 	ctx.reply("The token requested is not valid, check trending tokens and try again");
+// }
 
 /**
  * command: /quit
