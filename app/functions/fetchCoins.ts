@@ -7,7 +7,7 @@ const fetchData = async (network: string, bet: "bet" | null): Promise<{ data: Co
 
 	const headers = new Headers({
 		"User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/111.0",
-		Accept: "application/json, text/plain, /",
+		//Accept: "application/json, text/plain, /",
 		"Accept-Language": "en-US,en;q=0.5",
 		token: "undefined",
 		"agent-id": "f28a43fd-cb0e-4dad-a4eb-b28e8f3805b5",
@@ -19,6 +19,7 @@ const fetchData = async (network: string, bet: "bet" | null): Promise<{ data: Co
 
 	try {
 		const response = await fetch(url, { method: "GET", headers: headers });
+		console.log(response);
 		const result = await response.json();
 
 		if (bet) {
@@ -28,7 +29,7 @@ const fetchData = async (network: string, bet: "bet" | null): Promise<{ data: Co
 
 		return result as { data: CoinDataType[] };
 	} catch (error) {
-		// console.error("Error:", error);
+		console.error("Error:", error);
 		throw error; // Rethrow the error for the caller to handle
 	}
 };

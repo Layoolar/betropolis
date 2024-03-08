@@ -27,6 +27,8 @@ import fetchData from "./fetchCoins";
 // onst ChartJsImage = require("chartjs-to-image");
 import ChartJsImage from "chartjs-to-image";
 
+require("dotenv").config();
+
 interface MyUser extends TelegramUserInterface {
 	walletAddress: string | null;
 	bets: BetData[] | [];
@@ -130,26 +132,21 @@ const updateLeaderboard = () => {
 //console.log(databases.users.get("users").value());
 
 const getLeaderboard = (): string[] => {
-
 	const players = databases.leaderboard.get("leaders").value();
- players.sort((a, b) => b.wins - a.wins);
- const leaderboard:string[]=[]
+	players.sort((a, b) => b.wins - a.wins);
+	const leaderboard: string[] = [];
 
- // Select the top 10 players
- const top10Players = players.slice(0, 10);
+	// Select the top 10 players
+	const top10Players = players.slice(0, 10);
 
+	top10Players.forEach((element) => {});
 
- top10Players.forEach(element => {
+	for (let index = 0; index < top10Players.length; index++) {
+		const element = top10Players[index];
+		leaderboard.push(`${index + 1}. ${element.username}   ${element.wins} wins `);
+	}
 
-	
- });
-
- for (let index = 0; index < top10Players.length; index++) {
-	const element = top10Players[index];
-	leaderboard.push(`${index + 1}. ${element.username}   ${element.wins} wins `);
- }
-		
- return leaderboard;
+	return leaderboard;
 };
 
 const writeUser = async (json: MyUser): Promise<void> => {
@@ -296,9 +293,9 @@ const updateDbWithTopTen = async (network: string, db: string) => {
 	databases[db].get("coinsData").remove({ topTenStatus: false }).write();
 };
 
-// setInterval(async () => await updateDbWithTopTen("ethereum", "ethCoinsData"), 5000);
-// setInterval(async () => await updateDbWithTopTen("solana", "solCoinsData"), 5000);
-// setInterval(async () => await updateDbWithTopTen("bsc", "bnbCoinsData"), 5000);
+setInterval(async () => await updateDbWithTopTen("ethereum", "ethCoinsData"), 5000);
+setInterval(async () => await updateDbWithTopTen("solana", "solCoinsData"), 5000);
+setInterval(async () => await updateDbWithTopTen("bsc", "bnbCoinsData"), 5000);
 
 function extractTimeAndPrice(data: { price: number; marketCap: number }[]) {
 	let priceArray = data.map((item) => item.price);
@@ -340,7 +337,7 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 	// @ts-ignore
 	const historical = databases[db].get("coinsData").find({ id: token[0].token });
 
-	if (historical.value() === undefined) {
+	if (!historical.value()) {
 		return null;
 	}
 	// console.log(historical.value());
@@ -363,17 +360,34 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 		type: "line",
 		data: {
 			labels: [0, 5, 10, 15, 20, 25],
-			datasets: [{ label: "Coin price", data: priceArray.slice(-6) }],
+			datasets: [
+				{
+					label: "Coin price",
+					data: priceArray.slice(-6),
+					borderColor: "red",
+					backgroundColor: "transparent",
+				},
+			],
 		},
 	});
+	//myPriceChart.setBackgroundColor("transparent");
 	const myMcapChart = new ChartJsImage();
+
 	myMcapChart.setConfig({
 		type: "line",
 		data: {
 			labels: [0, 5, 10, 15, 20, 25],
-			datasets: [{ label: "Market cap", data: marketCapArray.slice(-6) }],
+			datasets: [
+				{
+					label: "Market cap",
+					data: marketCapArray.slice(-6),
+					borderColor: "red",
+					backgroundColor: "transparent",
+				},
+			],
 		},
 	});
+
 	// console.log(myChart.getUrl());
 
 	const buf = await myPriceChart.toBinary();
@@ -382,7 +396,6 @@ const getHistoricalDataAndGraph = async (tokenName: string, chain: string) => {
 };
 
 //this should be hidden
-
 
 // analyse the data and mention if there is a common market trend that can give informartion in buy or sell.
 

@@ -1,4 +1,4 @@
-const openaiApiKey = "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";
+const openaiApiKey = process.env.OPENAIKEY;
 
 export const queryAi = async (text: string): Promise<string> => {
 	let aiReply = "";
@@ -23,6 +23,7 @@ export const queryAi = async (text: string): Promise<string> => {
 		.then((data) => {
 			aiReply = data.choices[0].message.content as string;
 			console.log(aiReply);
+			//console.log(data);
 		})
 		.catch((error) => {
 			console.log("Error:", error);
